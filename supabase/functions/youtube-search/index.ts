@@ -15,42 +15,20 @@ serve(async (req) => {
   }
 
   try {
-    // Better error handling for request body parsing
+    // Parse request body - when called via supabase.functions.invoke, body is already JSON
     let requestBody;
     try {
-      // For Supabase function invoke, the body is already parsed as JSON
       requestBody = await req.json();
       console.log('Parsed request body:', requestBody);
     } catch (parseError) {
       console.error('Failed to parse request body as JSON:', parseError);
-      
-      // Fallback: try to read as text and then parse
-      try {
-        const text = await req.text();
-        console.log('Raw request body as text:', text);
-        
-        if (!text || text.trim() === '') {
-          console.error('Empty request body received');
-          return new Response(JSON.stringify({ 
-            error: 'Empty request body',
-            message: 'Please provide a search query in the request body'
-          }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-        
-        requestBody = JSON.parse(text);
-      } catch (secondParseError) {
-        console.error('Failed to parse request body as text then JSON:', secondParseError);
-        return new Response(JSON.stringify({ 
-          error: 'Invalid JSON in request body',
-          message: 'The request body must be valid JSON with a searchQuery field'
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+      return new Response(JSON.stringify({ 
+        error: 'Invalid JSON in request body',
+        message: 'The request body must be valid JSON with a searchQuery field'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const { searchQuery } = requestBody;
