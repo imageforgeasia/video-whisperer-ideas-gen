@@ -1,10 +1,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Clock, Calendar } from "lucide-react";
+import { Eye, Clock, Calendar, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface VideoResultsProps {
   searchQuery: string;
@@ -25,6 +26,7 @@ interface VideoData {
 const VideoResults = ({ searchQuery }: VideoResultsProps) => {
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -35,6 +37,7 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
 
   const fetchYouTubeData = async () => {
     setLoading(true);
+    setError(null);
     try {
       console.log("Fetching YouTube data for:", searchQuery);
       
@@ -44,6 +47,7 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
 
       if (error) {
         console.error("YouTube API error:", error);
+        setError(error.message || "Failed to fetch YouTube data");
         toast({
           title: "Error fetching YouTube data",
           description: "Failed to fetch real YouTube results. Please try again.",
@@ -55,9 +59,12 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
       if (data && data.videos) {
         setVideos(data.videos);
         console.log("Fetched videos:", data.videos);
+      } else {
+        setError("No videos found");
       }
     } catch (error) {
       console.error("Error calling YouTube API:", error);
+      setError("Failed to connect to YouTube API");
       toast({
         title: "Error",
         description: "Failed to connect to YouTube API. Please try again.",
@@ -82,6 +89,27 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <span className="ml-2">Fetching real YouTube results...</span>
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5 text-blue-600" />
+            Top 5 Video Results
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {error}. Please check your internet connection and try again.
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
     );
