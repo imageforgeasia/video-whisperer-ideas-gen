@@ -34,18 +34,12 @@ export const useYouTubeSearch = () => {
     try {
       console.log("Fetching YouTube data for:", searchQuery);
       
-      // Ensure we're sending a proper JSON body
+      // Pass the request body as a JavaScript object, not a JSON string
       const requestBody = { searchQuery: searchQuery.trim() };
-      const bodyString = JSON.stringify(requestBody);
       console.log("Request body object:", requestBody);
-      console.log("Request body string:", bodyString);
-      console.log("Request body length:", bodyString.length);
       
       const { data, error } = await supabase.functions.invoke('youtube-search', {
-        body: bodyString,
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        body: requestBody
       });
 
       console.log("Supabase function response:", { data, error });
