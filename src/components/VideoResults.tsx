@@ -1,11 +1,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Clock, Calendar, AlertCircle } from "lucide-react";
+import { Eye, Clock, Calendar, AlertCircle, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 interface VideoResultsProps {
   searchQuery: string;
@@ -45,34 +46,59 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
         body: { searchQuery }
       });
 
+      console.log("Supabase function response:", { data, error });
+
       if (error) {
         console.error("YouTube API error:", error);
-        setError(error.message || "Failed to fetch YouTube data");
+        const errorMessage = error.message || "Failed to fetch YouTube data";
+        setError(errorMessage);
         toast({
           title: "Error fetching YouTube data",
-          description: "Failed to fetch real YouTube results. Please try again.",
+          description: errorMessage,
           variant: "destructive",
         });
         return;
       }
 
-      if (data && data.videos) {
+      if (data && data.videos && Array.isArray(data.videos)) {
         setVideos(data.videos);
         console.log("Fetched videos:", data.videos);
+        toast({
+          title: "Success",
+          description: `Found ${data.videos.length} videos for "${searchQuery}"`,
+        });
+      } else if (data && data.error) {
+        const errorMessage = data.message || data.error;
+        setError(errorMessage);
+        toast({
+          title: "No results found",
+          description: errorMessage,
+          variant: "destructive",
+        });
       } else {
-        setError("No videos found");
+        setError("No videos found for this search query");
+        toast({
+          title: "No results",
+          description: "No videos found for this search query",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error calling YouTube API:", error);
-      setError("Failed to connect to YouTube API");
+      const errorMessage = error instanceof Error ? error.message : "Failed to connect to YouTube API";
+      setError(errorMessage);
       toast({
-        title: "Error",
-        description: "Failed to connect to YouTube API. Please try again.",
+        title: "Connection Error",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    fetchYouTubeData();
   };
 
   if (loading) {
@@ -106,10 +132,46 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
         <CardContent>
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {error}. Please check your internet connection and try again.
+            <AlertDescription className="mb-4">
+              {error}
             </AlertDescription>
           </Alert>
+          <Button 
+            onClick={handleRetry}
+            variant="outline"
+            size="sm"
+            className="mt-2"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (videos.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5 text-blue-600" />
+            Top 5 Video Results
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-gray-600">No videos found for "{searchQuery}"</p>
+            <Button 
+              onClick={handleRetry}
+              variant="outline"
+              size="sm"
+              className="mt-4"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -132,6 +194,9 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
                   src={video.thumbnail} 
                   alt={video.title}
                   className="w-32 h-18 object-cover rounded"
+                  onError={(e) => {
+                    e.currentTarget.src = "/placeholder.svg";
+                  }}
                 />
                 <div className="absolute bottom-1 right-1 bg-black bg-opacity-75 text-white text-xs px-1 rounded">
                   {video.duration}

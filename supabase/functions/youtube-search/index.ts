@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -20,6 +19,7 @@ serve(async (req) => {
     console.log('Search query:', searchQuery);
     
     if (!searchQuery) {
+      console.error('No search query provided');
       return new Response(JSON.stringify({ error: 'Search query is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -31,7 +31,10 @@ serve(async (req) => {
     
     if (!youtubeApiKey) {
       console.error('YouTube API key not found in environment');
-      return new Response(JSON.stringify({ error: 'YouTube API key not configured' }), {
+      return new Response(JSON.stringify({ 
+        error: 'YouTube API key not configured',
+        message: 'Please ensure YOUTUBE_API_KEY is set in Supabase secrets'
+      }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -39,38 +42,60 @@ serve(async (req) => {
 
     // Fetch search results from YouTube Data API
     const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(searchQuery)}&type=video&order=relevance&key=${youtubeApiKey}`;
-    console.log('Calling YouTube API...');
+    console.log('Calling YouTube Search API...');
     
     const searchResponse = await fetch(searchUrl);
-    const searchData = await searchResponse.json();
-
+    
     if (!searchResponse.ok) {
-      console.error('YouTube API error:', searchData);
-      return new Response(JSON.stringify({ error: 'Failed to fetch YouTube data', details: searchData }), {
+      const errorData = await searchResponse.text();
+      console.error('YouTube Search API error:', searchResponse.status, errorData);
+      return new Response(JSON.stringify({ 
+        error: 'Failed to fetch YouTube search results',
+        status: searchResponse.status,
+        details: errorData 
+      }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    const searchData = await searchResponse.json();
     console.log('Search results received:', searchData.items?.length || 0, 'videos');
+
+    if (!searchData.items || searchData.items.length === 0) {
+      console.log('No videos found for query:', searchQuery);
+      return new Response(JSON.stringify({ 
+        error: 'No videos found',
+        message: `No videos found for "${searchQuery}". Try a different search term.`
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Get video IDs for detailed statistics
     const videoIds = searchData.items.map((item: any) => item.id.videoId).join(',');
     
     // Fetch video details including statistics
     const videosUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails,snippet&id=${videoIds}&key=${youtubeApiKey}`;
+    console.log('Calling YouTube Videos API...');
     
     const videosResponse = await fetch(videosUrl);
-    const videosData = await videosResponse.json();
 
     if (!videosResponse.ok) {
-      console.error('YouTube Videos API error:', videosData);
-      return new Response(JSON.stringify({ error: 'Failed to fetch video details', details: videosData }), {
+      const errorData = await videosResponse.text();
+      console.error('YouTube Videos API error:', videosResponse.status, errorData);
+      return new Response(JSON.stringify({ 
+        error: 'Failed to fetch video details',
+        status: videosResponse.status,
+        details: errorData 
+      }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    const videosData = await videosResponse.json();
     console.log('Video details received for', videosData.items?.length || 0, 'videos');
 
     // Format the response
@@ -81,10 +106,10 @@ serve(async (req) => {
         id: video.id,
         title: video.snippet.title,
         channel: video.snippet.channelTitle,
-        views: formatViewCount(video.statistics.viewCount),
+        views: formatViewCount(video.statistics.viewCount || '0'),
         duration: formatDuration(video.contentDetails.duration),
         uploadDate: formatUploadDate(video.snippet.publishedAt),
-        thumbnail: video.snippet.thumbnails.medium.url,
+        thumbnail: video.snippet.thumbnails.medium?.url || video.snippet.thumbnails.default?.url || '',
         engagement: calculateEngagement(video.statistics),
         keyPoints: generateKeyPoints(video.snippet.title)
       };
@@ -98,7 +123,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in youtube-search function:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error', 
+      message: error.message,
+      stack: error.stack 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
