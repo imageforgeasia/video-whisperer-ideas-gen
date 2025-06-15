@@ -36,10 +36,10 @@ export const useYouTubeSearch = () => {
       
       // Ensure we're sending a proper JSON body
       const requestBody = { searchQuery: searchQuery.trim() };
-      console.log("Request body:", JSON.stringify(requestBody));
+      console.log("Request body being sent:", requestBody);
       
       const { data, error } = await supabase.functions.invoke('youtube-search', {
-        body: requestBody,
+        body: JSON.stringify(requestBody),
         headers: {
           'Content-Type': 'application/json',
         }
