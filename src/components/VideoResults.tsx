@@ -39,21 +39,42 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
   const fetchYouTubeData = async () => {
     setLoading(true);
     setError(null);
+    
     try {
       console.log("Fetching YouTube data for:", searchQuery);
+      console.log("Supabase URL:", supabase.supabaseUrl);
+      
+      // Add timeout and better error handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
       
       const { data, error } = await supabase.functions.invoke('youtube-search', {
-        body: { searchQuery }
+        body: { searchQuery },
+        headers: {
+          'Content-Type': 'application/json',
+        }
       });
 
+      clearTimeout(timeoutId);
       console.log("Supabase function response:", { data, error });
 
       if (error) {
         console.error("YouTube API error:", error);
-        const errorMessage = error.message || "Failed to fetch YouTube data";
+        
+        // Handle different types of errors
+        let errorMessage = "Failed to fetch YouTube data";
+        
+        if (error.message?.includes("Failed to send a request")) {
+          errorMessage = "Unable to connect to YouTube service. Please check your internet connection and try again.";
+        } else if (error.message?.includes("timeout")) {
+          errorMessage = "Request timed out. Please try again.";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
         setError(errorMessage);
         toast({
-          title: "Error fetching YouTube data",
+          title: "Connection Error",
           description: errorMessage,
           variant: "destructive",
         });
@@ -85,7 +106,19 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
       }
     } catch (error) {
       console.error("Error calling YouTube API:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to connect to YouTube API";
+      
+      let errorMessage = "Failed to connect to YouTube service";
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = "Request timed out. Please try again.";
+        } else if (error.message.includes("Failed to fetch")) {
+          errorMessage = "Network error. Please check your connection and try again.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setError(errorMessage);
       toast({
         title: "Connection Error",
@@ -98,6 +131,7 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
   };
 
   const handleRetry = () => {
+    console.log("Retrying YouTube search...");
     fetchYouTubeData();
   };
 
@@ -145,6 +179,14 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
             <RefreshCw className="h-4 w-4 mr-2" />
             Try Again
           </Button>
+          <div className="mt-4 p-3 bg-gray-50 rounded text-sm text-gray-600">
+            <p className="font-medium mb-2">Troubleshooting tips:</p>
+            <ul className="space-y-1 text-xs">
+              <li>• Check your internet connection</li>
+              <li>• Wait a moment and try again</li>
+              <li>• Try a different search term</li>
+            </ul>
+          </div>
         </CardContent>
       </Card>
     );
