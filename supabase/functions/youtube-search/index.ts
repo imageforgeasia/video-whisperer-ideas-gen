@@ -40,21 +40,68 @@ serve(async (req) => {
       });
     }
 
-    // Fetch search results from YouTube Data API
+    // Test connectivity first
+    console.log('Testing Google API connectivity...');
+    
+    // Fetch search results from YouTube Data API with better error handling
     const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(searchQuery)}&type=video&order=relevance&key=${youtubeApiKey}`;
     console.log('Calling YouTube Search API...');
     
-    const searchResponse = await fetch(searchUrl);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    
+    let searchResponse;
+    try {
+      searchResponse = await fetch(searchUrl, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Supabase-Edge-Function/1.0'
+        }
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.error('Fetch error details:', fetchError);
+      
+      if (fetchError.name === 'AbortError') {
+        return new Response(JSON.stringify({ 
+          error: 'Request timeout',
+          message: 'The YouTube API request timed out. Please try again.'
+        }), {
+          status: 408,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      return new Response(JSON.stringify({ 
+        error: 'Network connection failed',
+        message: 'Unable to reach YouTube API. Please check if the service is available.',
+        details: fetchError.message
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    console.log('Search API response status:', searchResponse.status);
     
     if (!searchResponse.ok) {
-      const errorData = await searchResponse.text();
-      console.error('YouTube Search API error:', searchResponse.status, errorData);
+      const errorText = await searchResponse.text();
+      console.error('YouTube Search API error:', searchResponse.status, errorText);
+      
+      let errorMessage = 'Failed to fetch YouTube search results';
+      if (searchResponse.status === 403) {
+        errorMessage = 'YouTube API quota exceeded or invalid API key. Please check your API key.';
+      } else if (searchResponse.status === 400) {
+        errorMessage = 'Invalid search query. Please try a different search term.';
+      }
+      
       return new Response(JSON.stringify({ 
-        error: 'Failed to fetch YouTube search results',
+        error: errorMessage,
         status: searchResponse.status,
-        details: errorData 
+        details: errorText 
       }), {
-        status: 500,
+        status: searchResponse.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -80,7 +127,31 @@ serve(async (req) => {
     const videosUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails,snippet&id=${videoIds}&key=${youtubeApiKey}`;
     console.log('Calling YouTube Videos API...');
     
-    const videosResponse = await fetch(videosUrl);
+    const videosController = new AbortController();
+    const videosTimeoutId = setTimeout(() => videosController.abort(), 15000);
+    
+    let videosResponse;
+    try {
+      videosResponse = await fetch(videosUrl, {
+        signal: videosController.signal,
+        headers: {
+          'User-Agent': 'Supabase-Edge-Function/1.0'
+        }
+      });
+      clearTimeout(videosTimeoutId);
+    } catch (fetchError) {
+      clearTimeout(videosTimeoutId);
+      console.error('Videos API fetch error:', fetchError);
+      
+      return new Response(JSON.stringify({ 
+        error: 'Failed to fetch video details',
+        message: 'Connection failed while fetching video details.',
+        details: fetchError.message
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!videosResponse.ok) {
       const errorData = await videosResponse.text();
