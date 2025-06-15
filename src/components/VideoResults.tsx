@@ -2,70 +2,90 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Clock, Calendar } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface VideoResultsProps {
   searchQuery: string;
 }
 
+interface VideoData {
+  id: string;
+  title: string;
+  channel: string;
+  views: string;
+  duration: string;
+  uploadDate: string;
+  thumbnail: string;
+  engagement: string;
+  keyPoints: string[];
+}
+
 const VideoResults = ({ searchQuery }: VideoResultsProps) => {
-  // Mock data - in a real app, this would come from YouTube API
-  const mockVideos = [
-    {
-      id: "1",
-      title: `The Ultimate ${searchQuery} Guide That Changed Everything`,
-      channel: "TechGuru Pro",
-      views: "2.3M",
-      duration: "12:45",
-      uploadDate: "2 weeks ago",
-      thumbnail: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=400&h=225&fit=crop",
-      engagement: "High",
-      keyPoints: ["Clear introduction", "Step-by-step process", "Real examples", "Call to action"]
-    },
-    {
-      id: "2",
-      title: `Why Everyone Gets ${searchQuery} Wrong (But You Won't)`,
-      channel: "Success Stories",
-      views: "1.8M",
-      duration: "15:23",
-      uploadDate: "1 month ago",
-      thumbnail: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=225&fit=crop",
-      engagement: "Very High",
-      keyPoints: ["Hook with controversy", "Problem identification", "Solution reveal", "Social proof"]
-    },
-    {
-      id: "3",
-      title: `${searchQuery}: From Beginner to Expert in 30 Days`,
-      channel: "Learn Fast Academy",
-      views: "1.2M",
-      duration: "18:12",
-      uploadDate: "3 weeks ago",
-      thumbnail: "https://images.unsplash.com/photo-1553028826-f4804a6dba3b?w=400&h=225&fit=crop",
-      engagement: "High",
-      keyPoints: ["Timeline promise", "Progress tracking", "Milestones", "Motivation"]
-    },
-    {
-      id: "4",
-      title: `The ${searchQuery} Mistake That Cost Me $10,000`,
-      channel: "Honest Reviews",
-      views: "950K",
-      duration: "9:34",
-      uploadDate: "5 days ago",
-      thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=225&fit=crop",
-      engagement: "Medium",
-      keyPoints: ["Personal story", "Costly mistake", "Lesson learned", "Prevention tips"]
-    },
-    {
-      id: "5",
-      title: `${searchQuery} Secrets the Pros Don't Want You to Know`,
-      channel: "Insider Tips",
-      views: "720K",
-      duration: "14:56",
-      uploadDate: "1 week ago",
-      thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=225&fit=crop",
-      engagement: "High",
-      keyPoints: ["Exclusive knowledge", "Industry secrets", "Advanced techniques", "Competitive advantage"]
+  const [videos, setVideos] = useState<VideoData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (searchQuery) {
+      fetchYouTubeData();
     }
-  ];
+  }, [searchQuery]);
+
+  const fetchYouTubeData = async () => {
+    setLoading(true);
+    try {
+      console.log("Fetching YouTube data for:", searchQuery);
+      
+      const { data, error } = await supabase.functions.invoke('youtube-search', {
+        body: { searchQuery }
+      });
+
+      if (error) {
+        console.error("YouTube API error:", error);
+        toast({
+          title: "Error fetching YouTube data",
+          description: "Failed to fetch real YouTube results. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data && data.videos) {
+        setVideos(data.videos);
+        console.log("Fetched videos:", data.videos);
+      }
+    } catch (error) {
+      console.error("Error calling YouTube API:", error);
+      toast({
+        title: "Error",
+        description: "Failed to connect to YouTube API. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5 text-blue-600" />
+            Top 5 Video Results
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2">Fetching real YouTube results...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -77,7 +97,7 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
       </CardHeader>
       <CardContent>
         <div className="grid gap-4">
-          {mockVideos.map((video, index) => (
+          {videos.map((video, index) => (
             <div key={video.id} className="flex gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
               <div className="relative flex-shrink-0">
                 <img 

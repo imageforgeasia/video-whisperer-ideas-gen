@@ -17,19 +17,21 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [hasResults, setHasResults] = useState(false);
+  const [currentSearch, setCurrentSearch] = useState("");
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
+    setCurrentSearch(searchQuery);
     console.log("Searching for:", searchQuery);
     
-    // Simulate API call
+    // Set a longer timeout for real API calls
     setTimeout(() => {
       setIsSearching(false);
       setHasResults(true);
-    }, 2000);
+    }, 1000);
   };
 
   return (
@@ -102,20 +104,20 @@ const Index = () => {
               {/* Current Search Badge */}
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-sm">
-                  Results for: "{searchQuery}"
+                  Results for: "{currentSearch}"
                 </Badge>
                 <Badge variant="outline" className="text-sm">
-                  Top 5 Videos Analyzed
+                  Real YouTube Data
                 </Badge>
               </div>
 
               {/* Video Results */}
-              <VideoResults searchQuery={searchQuery} />
+              <VideoResults searchQuery={currentSearch} />
 
               {/* Content Analysis */}
               <div className="grid lg:grid-cols-2 gap-8">
                 <ContentAnalysis />
-                <ScriptSuggestions searchQuery={searchQuery} />
+                <ScriptSuggestions searchQuery={currentSearch} />
               </div>
             </div>
           )}
@@ -126,15 +128,15 @@ const Index = () => {
               <div className="mx-auto max-w-md">
                 <FileText className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-4 text-lg font-medium text-gray-900">
-                  Ready to Analyze YouTube Content?
+                  Ready to Analyze Real YouTube Content?
                 </h3>
                 <p className="mt-2 text-gray-600">
-                  Enter a keyword above to discover what's working in your niche and get AI-powered script suggestions.
+                  Enter a keyword above to discover what's working in your niche using real YouTube data and get AI-powered script suggestions.
                 </p>
                 <div className="mt-6 grid grid-cols-1 gap-4 text-sm text-gray-600">
                   <div className="flex items-center gap-2">
                     <Lightbulb className="h-4 w-4 text-yellow-500" />
-                    <span>Analyzes top 5 search results</span>
+                    <span>Analyzes real top 5 search results</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-blue-500" />
