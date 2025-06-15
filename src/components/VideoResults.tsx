@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Clock, Calendar, AlertCircle, RefreshCw } from "lucide-react";
@@ -42,7 +41,6 @@ const VideoResults = ({ searchQuery }: VideoResultsProps) => {
     
     try {
       console.log("Fetching YouTube data for:", searchQuery);
-      console.log("Supabase URL:", supabase.supabaseUrl);
       
       // Add timeout and better error handling
       const controller = new AbortController();
