@@ -22,24 +22,29 @@ export const useYouTubeSearch = () => {
   const { toast } = useToast();
 
   const fetchYouTubeData = async (searchQuery: string) => {
+    if (!searchQuery || searchQuery.trim() === '') {
+      console.error('Empty search query provided');
+      setError('Please provide a search query');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
     try {
       console.log("Fetching YouTube data for:", searchQuery);
       
-      // Add timeout and better error handling
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      // Ensure we're sending a proper JSON body
+      const requestBody = { searchQuery: searchQuery.trim() };
+      console.log("Request body:", JSON.stringify(requestBody));
       
       const { data, error } = await supabase.functions.invoke('youtube-search', {
-        body: { searchQuery },
+        body: requestBody,
         headers: {
           'Content-Type': 'application/json',
         }
       });
 
-      clearTimeout(timeoutId);
       console.log("Supabase function response:", { data, error });
 
       if (error) {

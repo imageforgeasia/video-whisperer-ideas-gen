@@ -15,7 +15,36 @@ serve(async (req) => {
   }
 
   try {
-    const { searchQuery } = await req.json();
+    // Better error handling for request body parsing
+    let requestBody;
+    try {
+      const text = await req.text();
+      console.log('Raw request body:', text);
+      
+      if (!text || text.trim() === '') {
+        console.error('Empty request body received');
+        return new Response(JSON.stringify({ 
+          error: 'Empty request body',
+          message: 'Please provide a search query in the request body'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      requestBody = JSON.parse(text);
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid JSON in request body',
+        message: 'The request body must be valid JSON with a searchQuery field'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { searchQuery } = requestBody;
     console.log('Search query:', searchQuery);
     
     if (!searchQuery) {
